@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /contact
+Allow: /privacy-policy
+Allow: /terms
+Allow: /resources
+Allow: /resources/
+
+# Protect private authenticated workspace pages from search engine indexing
+Disallow: /dashboard
+Disallow: /journeys
+Disallow: /milestones
+Disallow: /timeline
+Disallow: /journal
+Disallow: /gallery
+Disallow: /profile
+Disallow: /reset-password
+
+Sitemap: /sitemap.xml

@@ -1,0 +1,20 @@
+{
+  "name": "SPG11 Journey Tracker",
+  "short_name": "SPG11 Tracker",
+  "description": "A simple and meaningful platform to document your SPG11 journey, organize milestones, save memories, and monitor your progress.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0d9488",
+  "background_color": "#ffffff",
+  "categories": ["health", "lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
