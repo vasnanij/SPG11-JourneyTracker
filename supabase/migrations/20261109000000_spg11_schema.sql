@@ -107,6 +107,7 @@ create index if not exists idx_journey_photos_journey_id on public.journey_photo
 create or replace function public.handle_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -152,6 +153,9 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.handle_updated_at() from public, anon, authenticated;
+
 -- ============================================================================
 -- 8. ROW-LEVEL SECURITY (RLS) POLICIES
 -- ============================================================================
@@ -165,96 +169,110 @@ alter table public.journey_photos enable row level security;
 drop policy if exists "Users can view their own profile" on public.profiles;
 create policy "Users can view their own profile"
   on public.profiles for select
-  using (auth.uid() = id);
+  to authenticated
+  using ((select auth.uid()) = id);
 
 drop policy if exists "Users can insert their own profile" on public.profiles;
 create policy "Users can insert their own profile"
   on public.profiles for insert
-  with check (auth.uid() = id);
+  to authenticated
+  with check ((select auth.uid()) = id);
 
 drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile"
   on public.profiles for update
-  using (auth.uid() = id)
-  with check (auth.uid() = id);
+  to authenticated
+  using ((select auth.uid()) = id)
+  with check ((select auth.uid()) = id);
 
 drop policy if exists "Users can delete their own profile" on public.profiles;
 create policy "Users can delete their own profile"
   on public.profiles for delete
-  using (auth.uid() = id);
+  to authenticated
+  using ((select auth.uid()) = id);
 
 -- JOURNEYS POLICIES
 drop policy if exists "Users can view their own journeys" on public.journeys;
 create policy "Users can view their own journeys"
   on public.journeys for select
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can create their own journeys" on public.journeys;
 create policy "Users can create their own journeys"
   on public.journeys for insert
-  with check (auth.uid() = user_id);
+  to authenticated
+  with check ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can update their own journeys" on public.journeys;
 create policy "Users can update their own journeys"
   on public.journeys for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can delete their own journeys" on public.journeys;
 create policy "Users can delete their own journeys"
   on public.journeys for delete
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 -- MILESTONES POLICIES (also validates ownership of the parent journey)
 drop policy if exists "Users can view their own milestones" on public.milestones;
 create policy "Users can view their own milestones"
   on public.milestones for select
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can create milestones for their own journeys" on public.milestones;
 create policy "Users can create milestones for their own journeys"
   on public.milestones for insert
+  to authenticated
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and exists (
       select 1 from public.journeys j
-      where j.id = journey_id and j.user_id = auth.uid()
+      where j.id = journey_id and j.user_id = (select auth.uid())
     )
   );
 
 drop policy if exists "Users can update their own milestones" on public.milestones;
 create policy "Users can update their own milestones"
   on public.milestones for update
-  using (auth.uid() = user_id)
+  to authenticated
+  using ((select auth.uid()) = user_id)
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and exists (
       select 1 from public.journeys j
-      where j.id = journey_id and j.user_id = auth.uid()
+      where j.id = journey_id and j.user_id = (select auth.uid())
     )
   );
 
 drop policy if exists "Users can delete their own milestones" on public.milestones;
 create policy "Users can delete their own milestones"
   on public.milestones for delete
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 -- JOURNAL ENTRIES POLICIES (validates optional associated journey ownership)
 drop policy if exists "Users can view their own journal entries" on public.journal_entries;
 create policy "Users can view their own journal entries"
   on public.journal_entries for select
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can create their own journal entries" on public.journal_entries;
 create policy "Users can create their own journal entries"
   on public.journal_entries for insert
+  to authenticated
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and (
       journey_id is null
       or exists (
         select 1 from public.journeys j
-        where j.id = journey_id and j.user_id = auth.uid()
+        where j.id = journey_id and j.user_id = (select auth.uid())
       )
     )
   );
@@ -262,14 +280,15 @@ create policy "Users can create their own journal entries"
 drop policy if exists "Users can update their own journal entries" on public.journal_entries;
 create policy "Users can update their own journal entries"
   on public.journal_entries for update
-  using (auth.uid() = user_id)
+  to authenticated
+  using ((select auth.uid()) = user_id)
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and (
       journey_id is null
       or exists (
         select 1 from public.journeys j
-        where j.id = journey_id and j.user_id = auth.uid()
+        where j.id = journey_id and j.user_id = (select auth.uid())
       )
     )
   );
@@ -277,24 +296,27 @@ create policy "Users can update their own journal entries"
 drop policy if exists "Users can delete their own journal entries" on public.journal_entries;
 create policy "Users can delete their own journal entries"
   on public.journal_entries for delete
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 -- JOURNEY PHOTOS POLICIES (validates optional associated journey ownership)
 drop policy if exists "Users can view their own photos" on public.journey_photos;
 create policy "Users can view their own photos"
   on public.journey_photos for select
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can insert their own photos" on public.journey_photos;
 create policy "Users can insert their own photos"
   on public.journey_photos for insert
+  to authenticated
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and (
       journey_id is null
       or exists (
         select 1 from public.journeys j
-        where j.id = journey_id and j.user_id = auth.uid()
+        where j.id = journey_id and j.user_id = (select auth.uid())
       )
     )
   );
@@ -302,13 +324,15 @@ create policy "Users can insert their own photos"
 drop policy if exists "Users can update their own photos" on public.journey_photos;
 create policy "Users can update their own photos"
   on public.journey_photos for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can delete their own photos" on public.journey_photos;
 create policy "Users can delete their own photos"
   on public.journey_photos for delete
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 -- ============================================================================
 -- 9. SUPABASE STORAGE BUCKET & PRIVATE STORAGE POLICIES
@@ -333,7 +357,7 @@ create policy "Users can view their own private media"
   to authenticated
   using (
     bucket_id = 'spg11-media'
-    and (storage.foldername(name))[1] = auth.uid()::text
+    and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
 drop policy if exists "Users can upload their own private media" on storage.objects;
@@ -342,7 +366,7 @@ create policy "Users can upload their own private media"
   to authenticated
   with check (
     bucket_id = 'spg11-media'
-    and (storage.foldername(name))[1] = auth.uid()::text
+    and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
 drop policy if exists "Users can update their own private media" on storage.objects;
@@ -351,7 +375,7 @@ create policy "Users can update their own private media"
   to authenticated
   using (
     bucket_id = 'spg11-media'
-    and (storage.foldername(name))[1] = auth.uid()::text
+    and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
 drop policy if exists "Users can delete their own private media" on storage.objects;
@@ -360,5 +384,5 @@ create policy "Users can delete their own private media"
   to authenticated
   using (
     bucket_id = 'spg11-media'
-    and (storage.foldername(name))[1] = auth.uid()::text
+    and (storage.foldername(name))[1] = (select auth.uid())::text
   );
