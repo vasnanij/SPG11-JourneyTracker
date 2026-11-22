@@ -40,8 +40,8 @@ interface AuthContextValue {
   deleteUserAccount: () => Promise<void>;
 }
 
-const ACCOUNTS_REGISTRY_KEY = 'spg11_auth_accounts_registry_v1';
-const ACTIVE_SESSION_KEY = 'spg11_active_auth_session_v1';
+const ACCOUNTS_REGISTRY_KEY = 'spg11_auth_accounts_registry_fjsoleiemcdlhlfiufvc';
+const ACTIVE_SESSION_KEY = 'spg11_active_auth_session_fjsoleiemcdlhlfiufvc';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -216,12 +216,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) {
       const msg = error.message.toLowerCase();
       if (msg.includes('already registered') || msg.includes('already exists')) {
-        throw new Error('An account with this email address is already registered.');
+        throw new Error('An account with this email address is already registered. Please sign in.');
       }
       // If Supabase free tier SMTP rate limit (2 emails/hr) is hit, still register the user with their isolated UUID
       if (!msg.includes('rate limit') && !msg.includes('email') && !msg.includes('confirmation')) {
         throw new Error(error.message);
       }
+    }
+
+    if (data?.user?.identities && data.user.identities.length === 0) {
+      throw new Error('An account with this email address is already registered. Please sign in.');
     }
 
     if (data?.user?.id) {
